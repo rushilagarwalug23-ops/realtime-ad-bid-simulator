@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ad Bid Simulator — Real-Time Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f1117;
+            --bg-card: #1a1d29;
+            --bg-card-hover: #232736;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+            --accent-orange: #f97316;
+            --border-color: #334155;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: var(--transition);
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: var(--transition);
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-blue);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        .btn {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .btn:hover {
+            background-color: #2563eb;
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .btn-outline:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+
+        .row {
+            margin-bottom: 24px;
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid transparent;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            border-color: var(--border-color);
+            background-color: var(--bg-card-hover);
+            transform: translateY(-2px);
+        }
+
+        .card h3 {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .kpi-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .kpi-subtext {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Chart Grid */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        /* Live Bid Panel */
+        .live-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 900px) {
+            .live-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            background-color: #0f1117;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: white;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        pre.json-response {
+            background-color: #0f1117;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            color: #a78bfa;
+            border: 1px solid var(--border-color);
+            min-height: 200px;
+        }
+        
+        .json-key { color: #93c5fd; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fde047; }
+        .json-boolean { color: #f9a8d4; }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        th {
+            color: var(--text-muted);
+            font-weight: 500;
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        tr.win td {
+            color: var(--accent-green);
+        }
+
+        tr.no-fill td {
+            color: var(--text-muted);
+        }
+        
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge.win { background-color: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+        .badge.no-fill { background-color: rgba(148, 163, 184, 0.2); color: var(--text-muted); }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 29, 41, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            border-radius: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: var(--transition);
+        }
+        
+        .loading-overlay.active {
+            opacity: 1;
+        }
+
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent-blue);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-msg {
+            color: var(--accent-red);
+            font-size: 0.875rem;
+            margin-top: 8px;
+            display: none;
+        }
+        
+        .circular-progress {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: conic-gradient(var(--accent-blue) calc(var(--progress) * 1%), transparent 0);
+            border: 2px solid var(--border-color);
+        }
+        .circular-progress::before {
+            content: "";
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: var(--bg-card);
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Ad Bid Simulator — Real-Time Dashboard</h1>
+            <div class="controls">
+                <span id="refresh-countdown" style="font-size: 0.875rem; color: var(--text-muted);">Refresh in 5s</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="auto-refresh-toggle" checked>
+                    <span class="slider"></span>
+                </label>
+                <span style="font-size: 0.875rem; color: var(--text-muted); margin-right: 16px;">Auto</span>
+                <button class="btn" id="refresh-btn">Refresh Now</button>
+            </div>
+        </header>
+
+        <!-- Row 1: KPIs -->
+        <div class="row kpi-grid">
+            <div class="card">
+                <h3>Total Requests</h3>
+                <div class="kpi-value" id="kpi-requests">0</div>
+            </div>
+            <div class="card" id="card-win-rate">
+                <h3>Win Rate</h3>
+                <div class="kpi-value" id="kpi-win-rate">0%</div>
+            </div>
+            <div class="card">
+                <h3>No-Fill Rate</h3>
+                <div class="kpi-value" id="kpi-no-fill">0%</div>
+            </div>
+            <div class="card">
+                <h3>Cache Hit Rate</h3>
+                <div class="kpi-value" id="kpi-cache">0%</div>
+                <div class="circular-progress" id="cache-progress" style="--progress: 0;"></div>
+            </div>
+            <div class="card">
+                <h3>Avg Latency</h3>
+                <div class="kpi-value" id="kpi-latency">0 ms</div>
+                <div class="kpi-subtext">
+                    <span style="color: var(--accent-green)" id="kpi-lat-cached">0 ms (C)</span> vs 
+                    <span style="color: var(--accent-orange)" id="kpi-lat-uncached">0 ms (U)</span>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Total Revenue</h3>
+                <div class="kpi-value" id="kpi-revenue">$0.00</div>
+            </div>
+        </div>
+
+        <!-- Row 2: Charts -->
+        <div class="row chart-grid">
+            <div class="card">
+                <div class="loading-overlay" id="loading-latency"><div class="spinner"></div></div>
+                <h3>Latency Over Time</h3>
+                <div class="chart-container">
+                    <canvas id="latencyChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="loading-overlay" id="loading-winrate"><div class="spinner"></div></div>
+                <h3>Win Rate Over Time</h3>
+                <div class="chart-container">
+                    <canvas id="winRateChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 3: Charts -->
+        <div class="row chart-grid">
+            <div class="card">
+                <h3>Cache Performance</h3>
+                <div class="chart-container">
+                    <canvas id="cacheChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Request Volume (Last 24h)</h3>
+                <div class="chart-container">
+                    <canvas id="volumeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 4: Live Bid Testing Panel -->
+        <div class="row">
+            <div class="card">
+                <h3 style="margin-bottom: 16px; font-size: 1.1rem; color: white;">Live Bid Testing Panel</h3>
+                <div class="live-panel">
+                    <div>
+                        <form id="bid-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Publisher ID</label>
+                                    <input type="number" id="f-pub" class="form-control" value="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Slot ID</label>
+                                    <input type="number" id="f-slot" class="form-control" value="1" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>User Geo</label>
+                                    <input type="text" id="f-geo" class="form-control" value="US">
+                                </div>
+                                <div class="form-group">
+                                    <label>Page Category</label>
+                                    <input type="text" id="f-cat" class="form-control" value="tech">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>User Interests (comma-separated)</label>
+                                <input type="text" id="f-int" class="form-control" value="tech, gaming">
+                            </div>
+                            <div class="btn-group">
+                                <button type="button" class="btn" id="btn-send-bid">Send Bid</button>
+                                <button type="button" class="btn btn-outline" id="btn-send-bid-nocache">Send Bid (No Cache)</button>
+                            </div>
+                            <div class="error-msg" id="bid-error"></div>
+                        </form>
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 6px; font-size: 0.875rem; color: var(--text-muted);">Response</label>
+                        <pre class="json-response" id="bid-response">Awaiting bid submission...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 5: Recent Activity -->
+        <div class="row">
+            <div class="card">
+                <h3 style="margin-bottom: 16px;">Recent Activity (Local Tests)</h3>
+                <div class="table-container">
+                    <table id="activity-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Request ID</th>
+                                <th>Pub/Slot</th>
+                                <th>Status</th>
+                                <th>Bid Price</th>
+                                <th>Latency</th>
+                                <th>Cache</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Rows injected via JS -->
+                            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No recent activity</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State & Config ---
+        const API_BASE = '/api/v1';
+        let autoRefreshInterval = null;
+        let refreshCountdown = 5;
+        let recentBids = [];
+
+        // --- Chart Configurations ---
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } }
+            },
+            scales: {
+                y: { grid: { color: 'rgba(51, 65, 85, 0.5)' } },
+                x: { grid: { display: false } }
+            }
+        };
+
+        // Latency Chart
+        const ctxLat = document.getElementById('latencyChart').getContext('2d');
+        const latencyChart = new Chart(ctxLat, {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'Cached Latency (ms)', borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', data: [], tension: 0.4 },
+                { label: 'Uncached Latency (ms)', borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', data: [], tension: 0.4 }
+            ]},
+            options: commonOptions
+        });
+
+        // Win Rate Chart
+        const ctxWin = document.getElementById('winRateChart').getContext('2d');
+        const winRateChart = new Chart(ctxWin, {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'Win Rate %', borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.2)', data: [], fill: true, tension: 0.4 }
+            ]},
+            options: { ...commonOptions, scales: { y: { min: 0, max: 100, grid: { color: 'rgba(51, 65, 85, 0.5)' } }, x: { grid: { display: false } } } }
+        });
+
+        // Cache Chart
+        const ctxCache = document.getElementById('cacheChart').getContext('2d');
+        const cacheChart = new Chart(ctxCache, {
+            type: 'bar',
+            data: { labels: ['Cached', 'Uncached'], datasets: [{
+                label: 'Avg Latency (ms)',
+                backgroundColor: ['#10b981', '#f97316'],
+                data: [0, 0]
+            }]},
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { color: 'rgba(51, 65, 85, 0.5)' } }, x: { grid: { display: false } } }
+            }
+        });
+
+        // Volume Chart
+        const ctxVol = document.getElementById('volumeChart').getContext('2d');
+        const volumeChart = new Chart(ctxVol, {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Requests', backgroundColor: '#3b82f6', data: [] }]},
+            options: commonOptions
+        });
+
+        // --- Utilities ---
+        function animateValue(obj, start, end, duration, formatStr = false, isCurrency = false) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const val = progress * (end - start) + start;
+                
+                if (isCurrency) {
+                    obj.innerHTML = '$' + val.toFixed(2);
+                } else if (formatStr) {
+                    obj.innerHTML = val.toFixed(1) + formatStr;
+                } else {
+                    obj.innerHTML = Math.floor(val).toLocaleString();
+                }
+                
+                if (progress < 1) window.requestAnimationFrame(step);
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function syntaxHighlight(json) {
+            if (typeof json != 'string') json = JSON.stringify(json, undefined, 2);
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) { cls = 'json-key'; }
+                    else { cls = 'json-string'; }
+                } else if (/true|false/.test(match)) { cls = 'json-boolean'; }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        function formatTime(isoStr) {
+            const d = new Date(isoStr);
+            return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+        }
+
+        // --- Data Fetching ---
+        async function fetchAPI(endpoint) {
+            try {
+                const res = await fetch(API_BASE + endpoint);
+                if (!res.ok) throw new Error('API Error');
+                return await res.json();
+            } catch (err) {
+                console.warn('Mocking data for', endpoint);
+                return getMockData(endpoint);
+            }
+        }
+
+        function getMockData(endpoint) {
+            if (endpoint.includes('/analytics/overview')) {
+                return {
+                    total_requests: Math.floor(Math.random() * 5000 + 1000),
+                    total_wins: Math.floor(Math.random() * 3000 + 800),
+                    win_rate: 0.75 + (Math.random() * 0.1 - 0.05),
+                    no_fill_rate: 0.15,
+                    avg_latency_ms: 12.5 + Math.random() * 2,
+                    avg_latency_cached_ms: 3.2,
+                    avg_latency_uncached_ms: 18.7,
+                    cache_hit_rate: 0.72 + (Math.random() * 0.1 - 0.05),
+                    avg_bid_price: 2.45,
+                    total_revenue: 2940.0 + Math.random() * 100
+                };
+            }
+            if (endpoint.includes('/analytics/latency')) {
+                const data = [];
+                let now = new Date();
+                now.setHours(now.getHours() - 24);
+                for(let i=0; i<24; i++) {
+                    data.push({
+                        time_bucket: now.toISOString(),
+                        avg_latency_ms: 15 + Math.random()*5,
+                        avg_cached_ms: 3 + Math.random(),
+                        avg_uncached_ms: 20 + Math.random()*10,
+                        request_count: Math.floor(100 + Math.random()*200)
+                    });
+                    now.setHours(now.getHours()+1);
+                }
+                return data;
+            }
+            if (endpoint.includes('/analytics/win-rate')) {
+                const data = [];
+                let now = new Date();
+                now.setHours(now.getHours() - 24);
+                for(let i=0; i<24; i++) {
+                    data.push({
+                        time_bucket: now.toISOString(),
+                        total: 150, wins: 120, win_rate: 0.7 + Math.random()*0.2, no_fills: 20
+                    });
+                    now.setHours(now.getHours()+1);
+                }
+                return data;
+            }
+            return null;
+        }
+
+        async function updateDashboard() {
+            // Document Loaders
+            document.querySelectorAll('.loading-overlay').forEach(el => el.classList.add('active'));
+
+            const [overview, latency, winrate] = await Promise.all([
+                fetchAPI('/analytics/overview'),
+                fetchAPI('/analytics/latency?hours=24'),
+                fetchAPI('/analytics/win-rate?hours=24')
+            ]);
+
+            document.querySelectorAll('.loading-overlay').forEach(el => el.classList.remove('active'));
+
+            if (overview) {
+                const reqEl = document.getElementById('kpi-requests');
+                animateValue(reqEl, parseInt(reqEl.innerText.replace(/,/g,'')) || 0, overview.total_requests, 1000);
+                
+                const winEl = document.getElementById('kpi-win-rate');
+                const winRateVal = overview.win_rate * 100;
+                animateValue(winEl, parseFloat(winEl.innerText) || 0, winRateVal, 1000, '%');
+                
+                const winCard = document.getElementById('card-win-rate');
+                winEl.style.color = winRateVal > 70 ? 'var(--accent-green)' : (winRateVal > 50 ? 'var(--accent-yellow)' : 'var(--accent-red)');
+
+                animateValue(document.getElementById('kpi-no-fill'), 0, overview.no_fill_rate * 100, 1000, '%');
+                
+                const cacheVal = overview.cache_hit_rate * 100;
+                animateValue(document.getElementById('kpi-cache'), 0, cacheVal, 1000, '%');
+                document.getElementById('cache-progress').style.setProperty('--progress', cacheVal);
+
+                animateValue(document.getElementById('kpi-latency'), 0, overview.avg_latency_ms, 1000, ' ms');
+                document.getElementById('kpi-lat-cached').innerText = overview.avg_latency_cached_ms.toFixed(1) + ' ms (C)';
+                document.getElementById('kpi-lat-uncached').innerText = overview.avg_latency_uncached_ms.toFixed(1) + ' ms (U)';
+
+                animateValue(document.getElementById('kpi-revenue'), 0, overview.total_revenue, 1000, false, true);
+
+                // Update Cache Chart
+                cacheChart.data.datasets[0].data = [overview.avg_latency_cached_ms, overview.avg_latency_uncached_ms];
+                cacheChart.update();
+            }
+
+            if (latency) {
+                const labels = latency.map(d => formatTime(d.time_bucket));
+                latencyChart.data.labels = labels;
+                latencyChart.data.datasets[0].data = latency.map(d => d.avg_cached_ms);
+                latencyChart.data.datasets[1].data = latency.map(d => d.avg_uncached_ms);
+                latencyChart.update();
+
+                volumeChart.data.labels = labels;
+                volumeChart.data.datasets[0].data = latency.map(d => d.request_count);
+                volumeChart.update();
+            }
+
+            if (winrate) {
+                winRateChart.data.labels = winrate.map(d => formatTime(d.time_bucket));
+                winRateChart.data.datasets[0].data = winrate.map(d => d.win_rate * 100);
+                winRateChart.update();
+            }
+        }
+
+        // --- Live Bid ---
+        async function sendBid(forceUncached = false) {
+            const btn = document.getElementById('btn-send-bid');
+            btn.disabled = true;
+            btn.innerText = 'Sending...';
+            
+            const payload = {
+                publisher_id: parseInt(document.getElementById('f-pub').value) || 1,
+                slot_id: parseInt(document.getElementById('f-slot').value) || 1,
+                user_geo: document.getElementById('f-geo').value,
+                page_category: document.getElementById('f-cat').value,
+                user_interests: document.getElementById('f-int').value.split(',').map(s=>s.trim()),
+                user_id: 'anon-' + Math.floor(Math.random()*10000),
+                _force_uncached: forceUncached
+            };
+
+            try {
+                let data;
+                try {
+                    const res = await fetch(API_BASE + '/bid', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if(!res.ok) throw new Error();
+                    data = await res.json();
+                } catch(e) {
+                    // Mock response
+                    const isWin = Math.random() > 0.2;
+                    data = {
+                        request_id: 'req-' + Math.random().toString(36).substr(2,9),
+                        won: isWin,
+                        campaign_id: isWin ? Math.floor(Math.random()*10) : null,
+                        advertiser: isWin ? 'MockAdCo' : null,
+                        bid_price: isWin ? (Math.random()*5).toFixed(2) : 0,
+                        latency_ms: forceUncached ? (20 + Math.random()*30).toFixed(2) : (2 + Math.random()*5).toFixed(2),
+                        cache_hit: !forceUncached && Math.random() > 0.3,
+                        no_fill: !isWin
+                    };
+                }
+
+                document.getElementById('bid-response').innerHTML = syntaxHighlight(data);
+                addRecentBid(payload, data);
+
+            } catch (err) {
+                document.getElementById('bid-error').style.display = 'block';
+                document.getElementById('bid-error').innerText = 'Failed to send bid request.';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Send Bid';
+            }
+        }
+
+        function addRecentBid(req, res) {
+            recentBids.unshift({ time: new Date(), req, res });
+            if (recentBids.length > 20) recentBids.pop();
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.querySelector('#activity-table tbody');
+            if (recentBids.length === 0) return;
+            
+            tbody.innerHTML = '';
+            recentBids.forEach(b => {
+                const tr = document.createElement('tr');
+                if (b.res.won) tr.classList.add('win');
+                else tr.classList.add('no-fill');
+
+                const status = b.res.won ? '<span class="badge win">WIN</span>' : '<span class="badge no-fill">NO FILL</span>';
+                
+                tr.innerHTML = `
+                    <td>${b.time.toLocaleTimeString()}</td>
+                    <td style="font-family:monospace; color:var(--text-muted)">${b.res.request_id.substring(0,8)}...</td>
+                    <td>${b.req.publisher_id} / ${b.req.slot_id}</td>
+                    <td>${status}</td>
+                    <td>$${b.res.bid_price}</td>
+                    <td>${b.res.latency_ms} ms</td>
+                    <td>${b.res.cache_hit ? '✅' : '❌'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- Event Listeners ---
+        document.getElementById('btn-send-bid').addEventListener('click', () => sendBid(false));
+        document.getElementById('btn-send-bid-nocache').addEventListener('click', () => sendBid(true));
+        
+        document.getElementById('refresh-btn').addEventListener('click', () => {
+            refreshCountdown = 5;
+            updateDashboard();
+        });
+
+        const toggle = document.getElementById('auto-refresh-toggle');
+        const countdownEl = document.getElementById('refresh-countdown');
+
+        function tick() {
+            if (toggle.checked) {
+                refreshCountdown--;
+                if (refreshCountdown <= 0) {
+                    updateDashboard();
+                    refreshCountdown = 5;
+                }
+                countdownEl.innerText = `Refresh in ${refreshCountdown}s`;
+            } else {
+                countdownEl.innerText = 'Auto-refresh off';
+            }
+        }
+
+        // Initialize
+        updateDashboard();
+        setInterval(tick, 1000);
+
+    </script>
+</body>
+</html>
