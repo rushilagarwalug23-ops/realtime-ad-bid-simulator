@@ -27,7 +27,7 @@ async def get_overview(db: AsyncSession = Depends(get_db)):
     result = await db.execute(query)
     row = result.fetchone()
     
-    if not row or row.total_requests == 0:
+    if not row or (row.total_requests or 0) == 0:
         return AnalyticsOverview(
             total_requests=0, total_wins=0, win_rate=0.0, no_fill_rate=0.0,
             avg_latency_ms=0.0, avg_latency_cached_ms=0.0, avg_latency_uncached_ms=0.0,
@@ -49,19 +49,37 @@ async def get_overview(db: AsyncSession = Depends(get_db)):
 
 @router.get('/latency', response_model=list[LatencyBucket])
 async def get_latency(hours: int = 24, db: AsyncSession = Depends(get_db)):
-    """Get latency metrics grouped by hour."""
-    query = text(f"""
-        SELECT 
-            date_trunc('hour', created_at) as time_bucket,
-            AVG(latency_ms) as avg_latency_ms,
-            AVG(CASE WHEN cache_hit THEN latency_ms END) as avg_cached_ms,
-            AVG(CASE WHEN NOT cache_hit THEN latency_ms END) as avg_uncached_ms,
-            COUNT(*) as request_count
-        FROM bid_logs
-        WHERE created_at >= NOW() - INTERVAL '{hours} hours'
-        GROUP BY time_bucket
-        ORDER BY time_bucket ASC
-    """)
+    """Get latency metrics grouped by hour, dialect-aware."""
+    bind = db.bind
+    is_sqlite = bind and bind.dialect.name == "sqlite"
+    
+    if is_sqlite:
+        query = text(f"""
+            SELECT 
+                strftime('%Y-%m-%d %H:00:00', created_at) as time_bucket,
+                AVG(latency_ms) as avg_latency_ms,
+                AVG(CASE WHEN cache_hit THEN latency_ms END) as avg_cached_ms,
+                AVG(CASE WHEN NOT cache_hit THEN latency_ms END) as avg_uncached_ms,
+                COUNT(*) as request_count
+            FROM bid_logs
+            WHERE created_at >= datetime('now', '-{hours} hours')
+            GROUP BY time_bucket
+            ORDER BY time_bucket ASC
+        """)
+    else:
+        query = text(f"""
+            SELECT 
+                date_trunc('hour', created_at) as time_bucket,
+                AVG(latency_ms) as avg_latency_ms,
+                AVG(CASE WHEN cache_hit THEN latency_ms END) as avg_cached_ms,
+                AVG(CASE WHEN NOT cache_hit THEN latency_ms END) as avg_uncached_ms,
+                COUNT(*) as request_count
+            FROM bid_logs
+            WHERE created_at >= NOW() - INTERVAL '{hours} hours'
+            GROUP BY time_bucket
+            ORDER BY time_bucket ASC
+        """)
+        
     result = await db.execute(query)
     rows = result.fetchall()
     
@@ -77,19 +95,37 @@ async def get_latency(hours: int = 24, db: AsyncSession = Depends(get_db)):
 
 @router.get('/win-rate', response_model=list[WinRateBucket])
 async def get_win_rate(hours: int = 24, db: AsyncSession = Depends(get_db)):
-    """Get win rate metrics grouped by hour."""
-    query = text(f"""
-        SELECT 
-            date_trunc('hour', created_at) as time_bucket,
-            COUNT(*) as total,
-            SUM(CASE WHEN won THEN 1 ELSE 0 END) as wins,
-            AVG(CASE WHEN won THEN 1.0 ELSE 0.0 END) as win_rate,
-            SUM(CASE WHEN no_fill THEN 1 ELSE 0 END) as no_fills
-        FROM bid_logs
-        WHERE created_at >= NOW() - INTERVAL '{hours} hours'
-        GROUP BY time_bucket
-        ORDER BY time_bucket ASC
-    """)
+    """Get win rate metrics grouped by hour, dialect-aware."""
+    bind = db.bind
+    is_sqlite = bind and bind.dialect.name == "sqlite"
+    
+    if is_sqlite:
+        query = text(f"""
+            SELECT 
+                strftime('%Y-%m-%d %H:00:00', created_at) as time_bucket,
+                COUNT(*) as total,
+                SUM(CASE WHEN won THEN 1 ELSE 0 END) as wins,
+                AVG(CASE WHEN won THEN 1.0 ELSE 0.0 END) as win_rate,
+                SUM(CASE WHEN no_fill THEN 1 ELSE 0 END) as no_fills
+            FROM bid_logs
+            WHERE created_at >= datetime('now', '-{hours} hours')
+            GROUP BY time_bucket
+            ORDER BY time_bucket ASC
+        """)
+    else:
+        query = text(f"""
+            SELECT 
+                date_trunc('hour', created_at) as time_bucket,
+                COUNT(*) as total,
+                SUM(CASE WHEN won THEN 1 ELSE 0 END) as wins,
+                AVG(CASE WHEN won THEN 1.0 ELSE 0.0 END) as win_rate,
+                SUM(CASE WHEN no_fill THEN 1 ELSE 0 END) as no_fills
+            FROM bid_logs
+            WHERE created_at >= NOW() - INTERVAL '{hours} hours'
+            GROUP BY time_bucket
+            ORDER BY time_bucket ASC
+        """)
+        
     result = await db.execute(query)
     rows = result.fetchall()
     

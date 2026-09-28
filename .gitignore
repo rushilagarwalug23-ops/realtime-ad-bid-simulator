@@ -7,6 +7,8 @@ __pycache__/
 dist/
 build/
 *.egg
+*.db
+*.sqlite3
 
 # Virtual environment
 venv/

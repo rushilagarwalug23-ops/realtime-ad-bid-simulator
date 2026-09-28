@@ -3,7 +3,9 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     """Application settings class."""
-    DATABASE_URL: str = 'postgresql+asyncpg://postgres:postgres@localhost:5432/adbiddb'
+    # Defaults to SQLite for instant local execution without Docker.
+    # Set to 'postgresql+asyncpg://postgres:postgres@localhost:5432/adbiddb' in .env for PostgreSQL.
+    DATABASE_URL: str = 'sqlite+aiosqlite:///./adbid.db'
     REDIS_URL: str = 'redis://localhost:6379/0'
     CACHE_TTL_PUBLISHER: int = 300
     CACHE_TTL_SLOT: int = 300
@@ -13,5 +15,6 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()
